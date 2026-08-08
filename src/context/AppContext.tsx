@@ -119,8 +119,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addMod = useCallback(
     (modData: Omit<GeneratedMod, "id" | "createdAt" | "updatedAt">) => {
       const now = new Date().toISOString();
+      const files = modData.files.map((f) => {
+        if (f.binary && f.content instanceof Uint8Array) {
+          let s = "";
+          const chunk = 0x8000;
+          for (let i = 0; i < f.content.length; i += chunk) {
+            s += String.fromCharCode(...f.content.subarray(i, i + chunk));
+          }
+          return { ...f, content: btoa(s), binary: true };
+        }
+        return f;
+      });
       const newMod: GeneratedMod = {
         ...modData,
+        files,
         id: uuidv4(),
         createdAt: now,
         updatedAt: now,
