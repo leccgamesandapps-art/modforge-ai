@@ -8,14 +8,24 @@ Create complete Resource Packs (RP) + Behavior Packs (BP) packaged as `.mcaddon`
 - Text-to-mod generation (blocks, items, mobs, armor, recipes, textures, models)
 - Full RP + BP structure
 - Downloadable `.mcaddon`
-- Account system (local demo + Google mock)
-- Google Drive cloud save mock
+- Real Google Sign-In (Auth.js / NextAuth v5)
+- Google Drive scope for future cloud saves
+- Local username/password fallback
 - Bottom nav: Home / Create / Projects
 - Top nav: Search, Profile, Settings
 
+## Environment Variables (required for Google login)
+
+```
+AUTH_SECRET=your-random-secret
+AUTH_GOOGLE_ID=your-google-client-id
+AUTH_GOOGLE_SECRET=your-google-client-secret
+```
+
 ## Stack
-- Next.js 15 + React 19 + Tailwind CSS 4
-- Client-side generation + JSZip packaging
+- Next.js 16 + React 19 + Tailwind CSS 4
+- Auth.js (next-auth v5)
+- JSZip packaging
 
 ## Local
 ```bash
@@ -24,7 +34,7 @@ npm run dev
 ```
 
 ## Deploy
-Ready for Vercel.
+Connected to Vercel. Set the three env vars above then redeploy.
 
 ---
 Built for the AI Mod Maker vision.
