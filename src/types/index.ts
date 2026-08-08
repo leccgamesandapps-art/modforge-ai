@@ -8,6 +8,7 @@ export interface User {
   driveConnected?: boolean;
   driveSaves?: number;
   createdAt: string;
+  fromGoogle?: boolean;
 }
 
 export interface ModFile {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AppProvider } from "@/context/AppContext";
+import Providers from "@/components/Providers";
 import TopNav from "@/components/TopNav";
 import BottomNav from "@/components/BottomNav";
 
@@ -30,11 +30,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-background text-foreground antialiased">
-        <AppProvider>
+        <Providers>
           <TopNav />
           <main className="flex-1 pb-24 pt-16 overflow-y-auto">{children}</main>
           <BottomNav />
-        </AppProvider>
+        </Providers>
       </body>
     </html>
   );
