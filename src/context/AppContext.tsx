@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { User, GeneratedMod } from "@/types";
 
@@ -17,6 +23,11 @@ interface AppContextType {
   deleteMod: (id: string) => void;
   connectGoogle: () => void;
   connectDrive: () => void;
+  setSessionUser: (sessionUser: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  } | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -33,7 +44,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data.user) setUser(data.user);
+        if (data.user && !data.user.fromGoogle) setUser(data.user);
         if (data.mods) setMods(data.mods);
       }
     } catch (e) {
@@ -44,11 +55,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLoading) return;
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ user, mods })
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, mods }));
   }, [user, mods, isLoading]);
+
+  const setSessionUser = useCallback(
+    (sessionUser: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    } | null) => {
+      if (!sessionUser || !sessionUser.email) {
+        setUser((prev) => (prev?.fromGoogle ? null : prev));
+        return;
+      }
+      setUser({
+        id: `google_${sessionUser.email}`,
+        username: sessionUser.name || "Google User",
+        email: sessionUser.email,
+        avatar:
+          sessionUser.image ||
+          `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(
+            sessionUser.email
+          )}`,
+        description: "Signed in with Google",
+        createdAt: new Date().toISOString(),
+        googleConnected: true,
+        driveConnected: true,
+        driveSaves: 0,
+        fromGoogle: true,
+      });
+    },
+    []
+  );
 
   const login = useCallback((username: string, email: string) => {
     const newUser: User = {
@@ -56,29 +94,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       username,
       email,
       description: "Minecraft mod creator powered by AI",
-      avatar: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(username)}`,
+      avatar: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(
+        username
+      )}`,
       createdAt: new Date().toISOString(),
       googleConnected: false,
       driveConnected: false,
       driveSaves: 0,
+      fromGoogle: false,
     };
     setUser(newUser);
   }, []);
 
-  const loginWithGoogle = useCallback(() => {
-    const newUser: User = {
-      id: uuidv4(),
-      username: "GoogleUser",
-      email: "user@gmail.com",
-      description: "Signed in with Google",
-      avatar: "https://api.dicebear.com/7.x/pixel-art/svg?seed=google",
-      createdAt: new Date().toISOString(),
-      googleConnected: true,
-      driveConnected: false,
-      driveSaves: 0,
-    };
-    setUser(newUser);
-  }, []);
+  const loginWithGoogle = useCallback(() => {}, []);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -115,11 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMods((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  const connectGoogle = useCallback(() => {
-    setUser((prev) =>
-      prev ? { ...prev, googleConnected: true } : null
-    );
-  }, []);
+  const connectGoogle = useCallback(() => {}, []);
 
   const connectDrive = useCallback(() => {
     setUser((prev) =>
@@ -148,6 +172,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteMod,
         connectGoogle,
         connectDrive,
+        setSessionUser,
       }}
     >
       {children}
