@@ -11,10 +11,13 @@ export interface User {
   fromGoogle?: boolean;
 }
 
+export type ModPlatform = "bedrock" | "java";
+
 export interface ModFile {
   path: string;
-  content: string;
-  type: "json" | "lang" | "mcfunction" | "png" | "other";
+  content: string | Uint8Array;
+  type: "json" | "lang" | "mcfunction" | "png" | "java" | "gradle" | "xml" | "toml" | "properties" | "mcmeta" | "other";
+  binary?: boolean;
 }
 
 export interface GeneratedMod {
@@ -23,6 +26,7 @@ export interface GeneratedMod {
   description: string;
   prompt: string;
   version: string;
+  platform: ModPlatform;
   createdAt: string;
   updatedAt: string;
   published: boolean;
