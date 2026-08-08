@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { generateModFromPrompt, createDownloadBlob } from "@/lib/modGenerator";
+import { downloadBlob } from "@/lib/download";
 import type { GenerationStep, ModPlatform } from "@/types";
 import { Sparkles, Download, Loader2, FileCode, Image as ImageIcon, Box, Package } from "lucide-react";
 
@@ -79,12 +80,7 @@ export default function CreatePage() {
   const handleDownload = async () => {
     if (!resultMod) return;
     const { blob, filename } = await createDownloadBlob(resultMod);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, filename);
   };
 
   return (
@@ -232,7 +228,7 @@ export default function CreatePage() {
             </div>
             <div className="flex items-center gap-2 text-muted">
               <Package className="w-4 h-4" />
-              {resultMod.platform === "java" ? "Fabric sources" : "RP + BP ready"}
+              {resultMod.platform === "java" ? "Fabric sources" : "RP + BP · .mcaddon"}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">

@@ -2,6 +2,7 @@
 
 import { useApp } from "@/context/AppContext";
 import { createDownloadBlob } from "@/lib/modGenerator";
+import { downloadBlob } from "@/lib/download";
 import { Package, Download, Trash2, Globe, GlobeLock } from "lucide-react";
 
 export default function ProjectsPage() {
@@ -11,12 +12,7 @@ export default function ProjectsPage() {
     const mod = mods.find((m) => m.id === modId);
     if (!mod) return;
     const { blob, filename } = await createDownloadBlob(mod);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, filename);
   };
 
   const togglePublish = (id: string, published: boolean) => {
@@ -93,9 +89,7 @@ export default function ProjectsPage() {
       )}
 
       {!user && (
-        <p className="text-center text-xs text-muted">
-          Sign in to keep projects across devices.
-        </p>
+        <p className="text-center text-xs text-muted">Sign in to keep projects across devices.</p>
       )}
     </div>
   );
