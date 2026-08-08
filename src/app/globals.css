@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b0f0c;
+  --foreground: #e8f0e9;
+  --card: #121a14;
+  --card-hover: #1a241c;
+  --primary: #3d9e4a;
+  --primary-hover: #4cbf5c;
+  --accent: #8b5cf6;
+  --muted: #6b7c6e;
+  --border: #1e2a20;
+  --danger: #ef4444;
+  --success: #22c55e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--primary-hover) 0%, var(--primary) 100%);
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 0 #2a6b32, 0 6px 12px rgba(0,0,0,0.3);
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #2a6b32, 0 8px 16px rgba(0,0,0,0.35);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #2a6b32;
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  transition: all 0.2s ease;
+}
+.card:hover {
+  background: var(--card-hover);
+  border-color: #2a3a2c;
+}
+
+.input-field {
+  background: #0d1410;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--foreground);
+  padding: 0.875rem 1rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(61, 158, 74, 0.2);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  color: var(--muted);
+  transition: color 0.2s;
+  text-decoration: none;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.nav-item.active, .nav-item:hover {
+  color: var(--primary);
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.pulse-glow {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
