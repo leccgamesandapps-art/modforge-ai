@@ -6,15 +6,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-          scope:
-            "openid email profile https://www.googleapis.com/auth/drive.file",
-        },
-      },
     }),
   ],
   trustHost: true,
@@ -26,14 +17,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.provider = account.provider;
       }
       if (profile) {
-        token.picture = (profile as any).picture;
+        token.picture = (profile as { picture?: string }).picture;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session as any).accessToken = token.accessToken;
-        (session as any).provider = token.provider;
+        (session as { accessToken?: unknown }).accessToken = token.accessToken;
+        (session as { provider?: unknown }).provider = token.provider;
         if (token.picture) {
           session.user.image = token.picture as string;
         }
