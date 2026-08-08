@@ -1,28 +1,6 @@
 import type { GeneratedMod, ModFile, ModPlatform } from "@/types";
 import { v4 as uuidv4 } from "uuid";
-
-function slugify(text: string): string {
-  return (
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_|_$/g, "")
-      .slice(0, 40) || "custom_mod"
-  );
-}
-
-function extractName(prompt: string): string {
-  const clean = prompt.replace(/["']/g, "").trim();
-  const modMatch = clean.match(/(?:a |an |the )?([a-z0-9][\w\s'-]{2,40}?)\s+mod/i);
-  if (modMatch) {
-    return modMatch[1]
-      .split(/\s+/)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(" ");
-  }
-  const words = clean.split(/\s+/).filter((w) => w.length > 2).slice(0, 5);
-  return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "Custom Mod";
-}
+import { extractModName, slugifyName } from "./modName";
 
 function detectFeatures(prompt: string) {
   const p = prompt.toLowerCase();
@@ -206,48 +184,46 @@ function generateBedrock(prompt: string, name: string, namespace: string): ModFi
     }, null, 2),
   });
 
-  if (features.block || features.glowing || true) {
-    files.push({
-      path: `BP/blocks/${namespace}_block.json`,
-      type: "json",
-      content: JSON.stringify({
-        format_version: "1.20.50",
-        "minecraft:block": {
-          description: { identifier: blockId, menu_category: { category: "construction" } },
-          components: {
-            "minecraft:destructible_by_mining": { seconds_to_destroy: 2.5 },
-            "minecraft:map_color": `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`,
-            "minecraft:light_emission": features.glowing ? 12 : 0,
-            "minecraft:friction": 0.6,
-            "minecraft:material_instances": { "*": { texture: `${namespace}_block`, render_method: "opaque" } },
-          },
+  files.push({
+    path: `BP/blocks/${namespace}_block.json`,
+    type: "json",
+    content: JSON.stringify({
+      format_version: "1.20.50",
+      "minecraft:block": {
+        description: { identifier: blockId, menu_category: { category: "construction" } },
+        components: {
+          "minecraft:destructible_by_mining": { seconds_to_destroy: 2.5 },
+          "minecraft:map_color": `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`,
+          "minecraft:light_emission": features.glowing ? 12 : 0,
+          "minecraft:friction": 0.6,
+          "minecraft:material_instances": { "*": { texture: `${namespace}_block`, render_method: "opaque" } },
         },
-      }, null, 2),
-    });
-    files.push({ path: `RP/textures/blocks/${namespace}_block.png`, type: "png", content: blockPng, binary: true });
-    files.push({
-      path: "RP/textures/terrain_texture.json",
-      type: "json",
-      content: JSON.stringify({
-        resource_pack_name: namespace,
-        texture_name: "atlas.terrain",
-        padding: 8,
-        num_mip_levels: 4,
-        texture_data: { [`${namespace}_block`]: { textures: `textures/blocks/${namespace}_block` } },
-      }, null, 2),
-    });
-    files.push({
-      path: `RP/models/blocks/${namespace}_block.geo.json`,
-      type: "json",
-      content: JSON.stringify({
-        format_version: "1.12.0",
-        "minecraft:geometry": [{
-          description: { identifier: `geometry.${namespace}.block`, texture_width: 16, texture_height: 16, visible_bounds_width: 2, visible_bounds_height: 2.5, visible_bounds_offset: [0, 0.75, 0] },
-          bones: [{ name: "block", pivot: [0, 0, 0], cubes: [{ origin: [-8, 0, -8], size: [16, 16, 16], uv: [0, 0] }] }],
-        }],
-      }, null, 2),
-    });
-  }
+      },
+    }, null, 2),
+  });
+  files.push({ path: `RP/textures/blocks/${namespace}_block.png`, type: "png", content: blockPng, binary: true });
+  files.push({
+    path: "RP/textures/terrain_texture.json",
+    type: "json",
+    content: JSON.stringify({
+      resource_pack_name: namespace,
+      texture_name: "atlas.terrain",
+      padding: 8,
+      num_mip_levels: 4,
+      texture_data: { [`${namespace}_block`]: { textures: `textures/blocks/${namespace}_block` } },
+    }, null, 2),
+  });
+  files.push({
+    path: `RP/models/blocks/${namespace}_block.geo.json`,
+    type: "json",
+    content: JSON.stringify({
+      format_version: "1.12.0",
+      "minecraft:geometry": [{
+        description: { identifier: `geometry.${namespace}.block`, texture_width: 16, texture_height: 16, visible_bounds_width: 2, visible_bounds_height: 2.5, visible_bounds_offset: [0, 0.75, 0] },
+        bones: [{ name: "block", pivot: [0, 0, 0], cubes: [{ origin: [-8, 0, -8], size: [16, 16, 16], uv: [0, 0] }] }],
+      }],
+    }, null, 2),
+  });
 
   if (features.mob) {
     files.push({
@@ -303,19 +279,6 @@ function generateBedrock(prompt: string, name: string, namespace: string): ModFi
       }, null, 2),
     });
     files.push({ path: `RP/textures/entity/${namespace}_mob.png`, type: "png", content: makePng(r, Math.max(0, g - 40), Math.min(255, b + 40)), binary: true });
-    files.push({
-      path: `RP/animations/${namespace}_mob.animation.json`,
-      type: "json",
-      content: JSON.stringify({
-        format_version: "1.8.0",
-        animations: {
-          [`animation.${namespace}.mob.idle`]: {
-            loop: true, animation_length: 2,
-            bones: { head: { rotation: { "0.0": [0, 0, 0], "1.0": [5, 10, 0], "2.0": [0, 0, 0] } } },
-          },
-        },
-      }, null, 2),
-    });
   }
 
   if (features.grenade) {
@@ -367,13 +330,13 @@ function generateBedrock(prompt: string, name: string, namespace: string): ModFi
   files.push({
     path: "BP/scripts/main.js",
     type: "other",
-    content: `import { world, system } from "@minecraft/server";\n\nworld.afterEvents.itemUse.subscribe((event) => {\n  const item = event.itemStack;\n  if (!item || !item.typeId.includes("${namespace}")) return;\n  event.source.sendMessage("§e[ModForge] ${name} item used!");\n});\n\nconsole.log("[ModForge AI] ${name} script loaded");\n`,
+    content: `import { world } from "@minecraft/server";\n\nworld.afterEvents.itemUse.subscribe((event) => {\n  const item = event.itemStack;\n  if (!item || !item.typeId.includes("${namespace}")) return;\n  event.source.sendMessage("§e[ModForge] ${name} item used!");\n});\n\nconsole.log("[ModForge AI] ${name} script loaded");\n`,
   });
 
   files.push({
     path: "RP/texts/en_US.lang",
     type: "lang",
-    content: `item.${itemId}.name=${name} Item\ntile.${blockId}.name=${name} Block\nentity.${entityId}.name=${name} Mob\n`,
+    content: `item.${itemId}.name=${name}\ntile.${blockId}.name=${name} Block\nentity.${entityId}.name=${name} Mob\n`,
   });
 
   files.push({
@@ -383,18 +346,9 @@ function generateBedrock(prompt: string, name: string, namespace: string): ModFi
   });
 
   files.push({
-    path: "RP/sounds/sound_definitions.json",
-    type: "json",
-    content: JSON.stringify({
-      format_version: "1.20.20",
-      sound_definitions: { [`${namespace}.use`]: { category: "player", sounds: ["sounds/sfx/use"] } },
-    }, null, 2),
-  });
-
-  files.push({
     path: "README.md",
     type: "other",
-    content: `# ${name}\n\nGenerated by **ModForge AI**\n\n> ${prompt}\n\n## Install (Bedrock)\n1. Open the \\`.mcaddon\\`\n2. Enable BP + RP in world settings\n\n- Item: \\`${itemId}\\`\n- Block: \\`${blockId}\\`\n`,
+    content: `# ${name}\n\nGenerated by **ModForge AI** from your description.\n\n> ${prompt}\n\n## Install (Bedrock)\n1. Open the .mcaddon\n2. Enable BP + RP in world settings\n\n- Item id: \`${itemId}\`\n- Block id: \`${blockId}\`\n`,
   });
 
   return files;
@@ -413,13 +367,7 @@ function generateJava(prompt: string, name: string, namespace: string): ModFile[
   files.push({
     path: "build.gradle",
     type: "gradle",
-    content: `plugins {\n    id 'fabric-loom' version '1.7-SNAPSHOT'\n    id 'maven-publish'\n}\nversion = project.mod_version\ngroup = project.maven_group\nbase { archivesName = project.archives_base_name }\nrepositories { mavenCentral() }\ndependencies {\n    minecraft \"com.mojang:minecraft:\${project.minecraft_version}\"\n    mappings \"net.fabricmc:yarn:\${project.yarn_mappings}:v2\"\n    modImplementation \"net.fabricmc:fabric-loader:\${project.loader_version}\"\n    modImplementation \"net.fabricmc.fabric-api:fabric-api:\${project.fabric_version}\"\n}\njava { withSourcesJar(); sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }\n`,
-  });
-
-  files.push({
-    path: "settings.gradle",
-    type: "gradle",
-    content: `pluginManagement { repositories { maven { url \"https://maven.fabricmc.net/\" }; gradlePluginPortal() } }\nrootProject.name = \"${namespace}\"\n`,
+    content: `plugins {\n    id 'fabric-loom' version '1.7-SNAPSHOT'\n    id 'maven-publish'\n}\nversion = project.mod_version\ngroup = project.maven_group\nbase { archivesName = project.archives_base_name }\nrepositories { mavenCentral() }\ndependencies {\n    minecraft "com.mojang:minecraft:\${project.minecraft_version}"\n    mappings "net.fabricmc:yarn:\${project.yarn_mappings}:v2"\n    modImplementation "net.fabricmc:fabric-loader:\${project.loader_version}"\n    modImplementation "net.fabricmc.fabric-api:fabric-api:\${project.fabric_version}"\n}\njava { withSourcesJar(); sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }\n`,
   });
 
   files.push({
@@ -449,7 +397,7 @@ function generateJava(prompt: string, name: string, namespace: string): ModFile[
   files.push({
     path: `src/main/java/${pkgPath}/${classBase}Mod.java`,
     type: "java",
-    content: `package ${pkg};\n\nimport net.fabricmc.api.ModInitializer;\nimport net.minecraft.item.Item;\nimport net.minecraft.item.ItemGroups;\nimport net.minecraft.registry.Registries;\nimport net.minecraft.registry.Registry;\nimport net.minecraft.util.Identifier;\nimport net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\npublic class ${classBase}Mod implements ModInitializer {\n    public static final String MOD_ID = \"${namespace}\";\n    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);\n    public static final Item CORE_ITEM = new Item(new Item.Settings().maxCount(${features.grenade ? 16 : 64}));\n\n    @Override\n    public void onInitialize() {\n        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, \"core_item\"), CORE_ITEM);\n        ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> entries.add(CORE_ITEM));\n        LOGGER.info(\"ModForge AI loaded: ${name}\");\n    }\n}\n`,
+    content: `package ${pkg};\n\nimport net.fabricmc.api.ModInitializer;\nimport net.minecraft.item.Item;\nimport net.minecraft.item.ItemGroups;\nimport net.minecraft.registry.Registries;\nimport net.minecraft.registry.Registry;\nimport net.minecraft.util.Identifier;\nimport net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\npublic class ${classBase}Mod implements ModInitializer {\n    public static final String MOD_ID = "${namespace}";\n    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);\n    public static final Item CORE_ITEM = new Item(new Item.Settings().maxCount(${features.grenade ? 16 : 64}));\n\n    @Override\n    public void onInitialize() {\n        Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "core_item"), CORE_ITEM);\n        ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> entries.add(CORE_ITEM));\n        LOGGER.info("ModForge AI loaded: ${name}");\n    }\n}\n`,
   });
 
   files.push({
@@ -461,7 +409,7 @@ function generateJava(prompt: string, name: string, namespace: string): ModFile[
   files.push({
     path: `src/main/resources/assets/${namespace}/lang/en_us.json`,
     type: "json",
-    content: JSON.stringify({ [`item.${namespace}.core_item`]: `${name} Item`, [`block.${namespace}.core_block`]: `${name} Block` }, null, 2),
+    content: JSON.stringify({ [`item.${namespace}.core_item`]: name, [`block.${namespace}.core_block`]: `${name} Block` }, null, 2),
   });
 
   files.push({
@@ -472,17 +420,6 @@ function generateJava(prompt: string, name: string, namespace: string): ModFile[
 
   files.push({ path: `src/main/resources/assets/${namespace}/textures/item/core_item.png`, type: "png", content: itemPng, binary: true });
   files.push({ path: `src/main/resources/assets/${namespace}/icon.png`, type: "png", content: iconPng, binary: true });
-
-  files.push({
-    path: `src/main/resources/data/${namespace}/recipes/core_item.json`,
-    type: "json",
-    content: JSON.stringify({
-      type: "minecraft:crafting_shaped",
-      pattern: [" X ", " # ", " # "],
-      key: { X: { item: "minecraft:iron_ingot" }, "#": { item: "minecraft:stick" } },
-      result: { item: `${namespace}:core_item`, count: 1 },
-    }, null, 2),
-  });
 
   files.push({
     path: "README.md",
@@ -497,8 +434,9 @@ export function generateModFromPrompt(
   prompt: string,
   platform: ModPlatform = "bedrock"
 ): Omit<GeneratedMod, "id" | "createdAt" | "updatedAt"> {
-  const name = extractName(prompt);
-  const namespace = slugify(name);
+  // Auto-name from description
+  const name = extractModName(prompt);
+  const namespace = slugifyName(name);
   const version = "1.0.0";
   const features = detectFeatures(prompt);
   const files = platform === "java" ? generateJava(prompt, name, namespace) : generateBedrock(prompt, name, namespace);
@@ -545,7 +483,7 @@ export async function createDownloadBlob(mod: GeneratedMod): Promise<{ blob: Blo
 
   zip.file(
     "GENERATED_BY_MODFORGE_AI.txt",
-    `ModForge AI\nPrompt: ${mod.prompt}\nPlatform: ${mod.platform}\nFiles: ${mod.files.length}\n`
+    `ModForge AI\nName: ${mod.name}\nPrompt: ${mod.prompt}\nPlatform: ${mod.platform}\nFiles: ${mod.files.length}\n`
   );
 
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
