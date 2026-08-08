@@ -3,28 +3,40 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
-import { generateModFromPrompt, createMcaddonBlob } from "@/lib/modGenerator";
-import type { GenerationStep } from "@/types";
-import { Sparkles, Download, CheckCircle2, Loader2, FileCode, Image as ImageIcon, Box, Package } from "lucide-react";
-
-const STEPS_TEMPLATE: GenerationStep[] = [
-  { id: "analyze", label: "Analyzing prompt & planning structure", status: "pending" },
-  { id: "bp", label: "Generating Behavior Pack (entities, items, blocks, recipes)", status: "pending" },
-  { id: "rp", label: "Generating Resource Pack (textures, models, sounds, UI)", status: "pending" },
-  { id: "textures", label: "AI texturing & 3D model generation", status: "pending" },
-  { id: "package", label: "Packaging .mcaddon (RP + BP)", status: "pending" },
-];
+import { generateModFromPrompt, createDownloadBlob } from "@/lib/modGenerator";
+import type { GenerationStep, ModPlatform } from "@/types";
+import { Sparkles, Download, Loader2, FileCode, Image as ImageIcon, Box, Package } from "lucide-react";
 
 export default function CreatePage() {
   const { addMod, user } = useApp();
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
+  const [platform, setPlatform] = useState<ModPlatform>("bedrock");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [steps, setSteps] = useState<GenerationStep[]>(STEPS_TEMPLATE);
+  const [steps, setSteps] = useState<GenerationStep[]>([]);
   const [progress, setProgress] = useState(0);
   const [resultMod, setResultMod] = useState<ReturnType<typeof addMod> | null>(null);
   const [error, setError] = useState("");
   const abortRef = useRef(false);
+
+  const buildSteps = (p: ModPlatform): GenerationStep[] => {
+    if (p === "java") {
+      return [
+        { id: "analyze", label: "Analyzing prompt & planning mod structure", status: "pending" },
+        { id: "code", label: "Generating Java sources (.java) + Fabric entrypoints", status: "pending" },
+        { id: "data", label: "Generating data packs (recipes, loot, lang, models)", status: "pending" },
+        { id: "assets", label: "Generating textures, icons & resources", status: "pending" },
+        { id: "package", label: "Packaging Fabric project (.zip)", status: "pending" },
+      ];
+    }
+    return [
+      { id: "analyze", label: "Analyzing prompt & planning structure", status: "pending" },
+      { id: "bp", label: "Generating Behavior Pack (entities, items, blocks, recipes, scripts)", status: "pending" },
+      { id: "rp", label: "Generating Resource Pack (textures, models, animations, UI)", status: "pending" },
+      { id: "textures", label: "AI texturing & 3D model generation", status: "pending" },
+      { id: "package", label: "Packaging .mcaddon (RP + BP)", status: "pending" },
+    ];
+  };
 
   const updateStep = (id: string, status: GenerationStep["status"]) => {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
@@ -32,48 +44,30 @@ export default function CreatePage() {
 
   const runGeneration = async () => {
     if (!prompt.trim() || isGenerating) return;
-    setIsGenerating(true);
+    abortRef.current = false;
     setError("");
     setResultMod(null);
+    setIsGenerating(true);
     setProgress(0);
-    setSteps(STEPS_TEMPLATE.map((s) => ({ ...s, status: "pending" })));
-    abortRef.current = false;
+    const stepList = buildSteps(platform);
+    setSteps(stepList);
+
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
     try {
-      updateStep("analyze", "running");
-      setProgress(10);
-      await delay(800);
-      if (abortRef.current) return;
-      updateStep("analyze", "done");
-      setProgress(25);
+      for (let i = 0; i < stepList.length; i++) {
+        if (abortRef.current) return;
+        const step = stepList[i];
+        updateStep(step.id, "running");
+        await delay(platform === "java" ? 700 + i * 200 : 800 + i * 250);
+        if (abortRef.current) return;
+        updateStep(step.id, "done");
+        setProgress(Math.round(((i + 1) / stepList.length) * 100));
+      }
 
-      updateStep("bp", "running");
-      await delay(1200);
-      if (abortRef.current) return;
-      updateStep("bp", "done");
-      setProgress(50);
-
-      updateStep("rp", "running");
-      await delay(1000);
-      if (abortRef.current) return;
-      updateStep("rp", "done");
-      setProgress(70);
-
-      updateStep("textures", "running");
-      await delay(1400);
-      if (abortRef.current) return;
-      updateStep("textures", "done");
-      setProgress(90);
-
-      updateStep("package", "running");
-      await delay(700);
-      if (abortRef.current) return;
-
-      const modData = generateModFromPrompt(prompt.trim());
+      const modData = generateModFromPrompt(prompt.trim(), platform);
       const saved = addMod(modData);
       setResultMod(saved);
-      updateStep("package", "done");
-      setProgress(100);
     } catch (e) {
       setError("Generation failed. Please try again.");
       console.error(e);
@@ -84,11 +78,11 @@ export default function CreatePage() {
 
   const handleDownload = async () => {
     if (!resultMod) return;
-    const blob = await createMcaddonBlob(resultMod);
+    const { blob, filename } = await createDownloadBlob(resultMod);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${resultMod.name.replace(/\s+/g, "_")}.mcaddon`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -101,7 +95,7 @@ export default function CreatePage() {
           AI Mod Creator
         </h1>
         <p className="text-muted text-sm mt-1">
-          Describe any Minecraft mod. The AI generates a complete Resource Pack + Behavior Pack (.mcaddon).
+          Describe any Minecraft mod. Choose Java or Bedrock. Get a full downloadable pack.
         </p>
       </div>
 
@@ -109,29 +103,61 @@ export default function CreatePage() {
         <label className="block text-sm font-medium">What do you want to create?</label>
         <textarea
           className="input-field min-h-[140px] resize-y"
-          placeholder="Example: A glowing crystal ore that drops magical gems, with a custom pickaxe that mines it faster and a small glowing crystal golem mob that protects the ore..."
+          placeholder="Example: A throwable grenade that explodes on impact, with a custom texture, projectile entity, and crafting recipe..."
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           disabled={isGenerating}
         />
-        <div className="flex flex-wrap gap-2 text-xs text-muted">
-          <span className="px-2 py-1 rounded-full bg-card-hover">Blocks</span>
-          <span className="px-2 py-1 rounded-full bg-card-hover">Items</span>
-          <span className="px-2 py-1 rounded-full bg-card-hover">Mobs</span>
-          <span className="px-2 py-1 rounded-full bg-card-hover">Armor</span>
-          <span className="px-2 py-1 rounded-full bg-card-hover">Recipes</span>
-          <span className="px-2 py-1 rounded-full bg-card-hover">Textures</span>
-          <span className="px-2 py-1 rounded-full bg-card-hover">Models</span>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Platform</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={isGenerating}
+              onClick={() => setPlatform("bedrock")}
+              className={`px-4 py-3 rounded-xl border text-sm font-medium transition ${
+                platform === "bedrock"
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border hover:bg-card-hover"
+              }`}
+            >
+              Bedrock
+              <span className="block text-[10px] opacity-70 font-normal">.mcaddon · RP + BP</span>
+            </button>
+            <button
+              type="button"
+              disabled={isGenerating}
+              onClick={() => setPlatform("java")}
+              className={`px-4 py-3 rounded-xl border text-sm font-medium transition ${
+                platform === "java"
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border hover:bg-card-hover"
+              }`}
+            >
+              Java (Fabric)
+              <span className="block text-[10px] opacity-70 font-normal">.zip · sources + assets</span>
+            </button>
+          </div>
         </div>
+
+        <div className="flex flex-wrap gap-2 text-xs text-muted">
+          {["Blocks", "Items", "Mobs", "Armor", "Recipes", "Textures", "Models"].map((t) => (
+            <span key={t} className="px-2 py-1 rounded-full bg-card-hover">
+              {t}
+            </span>
+          ))}
+        </div>
+
         <button
-          className="btn-primary w-full flex items-center justify-center gap-2"
           onClick={runGeneration}
           disabled={!prompt.trim() || isGenerating}
+          className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isGenerating ? (
             <>
               <Loader2 className="w-5 h-5 spinner" />
-              Generating advanced mod...
+              Generating…
             </>
           ) : (
             <>
@@ -142,37 +168,36 @@ export default function CreatePage() {
         </button>
       </div>
 
-      {(isGenerating || resultMod) && (
-        <div className="card p-5 space-y-4">
+      {(isGenerating || progress > 0) && steps.length > 0 && (
+        <div className="card p-5 space-y-3">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium">Generation Progress</span>
-            <span className="text-primary">{progress}%</span>
+            <span className="text-muted">{progress}%</span>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progress}%` }} />
+          <div className="h-2 rounded-full bg-card-hover overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
           </div>
-          <ul className="space-y-3">
+          <ul className="space-y-2 text-sm">
             {steps.map((step) => (
-              <li key={step.id} className="flex items-center gap-3 text-sm">
+              <li key={step.id} className="flex items-center gap-2">
                 {step.status === "done" ? (
-                  <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                  <span className="text-primary">✓</span>
                 ) : step.status === "running" ? (
-                  <Loader2 className="w-5 h-5 text-primary spinner shrink-0" />
+                  <Loader2 className="w-4 h-4 text-primary spinner shrink-0" />
                 ) : (
-                  <div className="w-5 h-5 rounded-full border border-border shrink-0" />
+                  <span className="w-4 h-4 rounded-full border border-border shrink-0 inline-block" />
                 )}
-                <span className={step.status === "pending" ? "text-muted" : ""}>
-                  {step.label}
-                </span>
+                <span className={step.status === "pending" ? "text-muted" : ""}>{step.label}</span>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {error && (
-        <div className="card p-4 border-danger/50 text-danger text-sm">{error}</div>
-      )}
+      {error && <div className="card p-4 border-danger/50 text-danger text-sm">{error}</div>}
 
       {resultMod && (
         <div className="card p-5 space-y-4 border-primary/30">
@@ -203,17 +228,17 @@ export default function CreatePage() {
             </div>
             <div className="flex items-center gap-2 text-muted">
               <ImageIcon className="w-4 h-4" />
-              Textures + Models
+              Real PNG textures
             </div>
             <div className="flex items-center gap-2 text-muted">
               <Package className="w-4 h-4" />
-              RP + BP ready
+              {resultMod.platform === "java" ? "Fabric sources" : "RP + BP ready"}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <button onClick={handleDownload} className="btn-primary flex-1 flex items-center justify-center gap-2">
               <Download className="w-5 h-5" />
-              Download .mcaddon
+              Download {resultMod.platform === "java" ? ".zip" : ".mcaddon"}
             </button>
             <button
               onClick={() => router.push("/projects")}
@@ -226,7 +251,7 @@ export default function CreatePage() {
             <summary className="cursor-pointer text-muted hover:text-foreground">
               Preview generated files ({resultMod.files.length})
             </summary>
-            <ul className="mt-2 max-h-48 overflow-y-auto space-y-1 font-mono text-xs text-muted">
+            <ul className="mt-2 max-h-56 overflow-y-auto space-y-1 font-mono text-xs text-muted">
               {resultMod.files.map((f) => (
                 <li key={f.path} className="truncate">
                   {f.path}
@@ -239,13 +264,13 @@ export default function CreatePage() {
 
       {!user && (
         <p className="text-center text-xs text-muted">
-          Tip: <a href="/settings" className="text-primary underline">Sign in</a> to save mods to your account & Google Drive.
+          Tip:{" "}
+          <a href="/settings" className="text-primary underline">
+            Sign in
+          </a>{" "}
+          to save mods to your account.
         </p>
       )}
     </div>
   );
-}
-
-function delay(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
 }
